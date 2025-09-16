@@ -1,25 +1,18 @@
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
 
-class ChatRequest(BaseModel):
-    query: str = Field(..., example="Explain how authentication works in the repo")
-    persona: str = Field(
-        default="senior_engineer",
-        example="mentor",
-        description="Choose chatbot persona: senior_engineer, mentor, reviewer"
-    )
-
-class Source(BaseModel):
-    file: str = Field(..., example="src/auth/middleware.py")
-    snippet: Optional[str] = Field(None, example="def verify_token(token): ...")
-
-class ChatResponse(BaseModel):
-    answer: str = Field(..., example="The authentication flow starts with middleware...")
-    sources: List[Source] = Field(
-        ...,
-        description="List of source files/snippets used for this answer"
-    )
+class IndexRequest(BaseModel):
+    repo_url: str
 
 class IndexResponse(BaseModel):
-    status: str = Field(..., example="indexed")
-    chunks_indexed: int = Field(..., example=152)
+    status: str
+    chunks_indexed: int
+    repo: str
+
+class ChatRequest(BaseModel):
+    query: str
+    model: Optional[str] = "phi3"  # default to phi3
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: List[Dict[str, Any]]

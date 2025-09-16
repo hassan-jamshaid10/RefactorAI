@@ -1,40 +1,25 @@
-from fastapi import FastAPI, UploadFile, Form
+from fastapi import FastAPI
 from app import repo_loader, embeddings, vectorstore, retriever, rag
-from app.models import ChatRequest, ChatResponse, IndexResponse
+from app.models import ChatRequest, ChatResponse, IndexRequest, IndexResponse
 
 app = FastAPI(
-    title="RAG Chatbot (Gemini-powered)",
-    description="Chatbot for exploring code repositories using Retrieval-Augmented Generation (RAG) and Google Gemini API.",
-    version="1.1.0",
-    contact={
-        "name": "Your Team",
-        "url": "https://yourcompany.com",
-        "email": "dev@yourcompany.com",
-    }
+    title="Local RAG Chatbot (Phi-3 + Ollama)",
+    description="Offline RAG chatbot using Phi-3 (via Ollama) and HuggingFace embeddings",
+    version="1.0.0"
 )
 
-@app.post(
-    "/index_repo",
-    response_model=IndexResponse,
-    summary="Index a repository",
-    description="Ingests a local repo path, chunks the code, generates embeddings with Gemini, and stores them in FAISS."
-)
-async def index_repo(repo_path: str = Form(..., description="Path to local repository")):
-    chunks = repo_loader.load_and_chunk(repo_path)
+@app.post("/index_repo", response_model=IndexResponse, summary="Index a GitHub/HF repo")
+async def index_repo(request: IndexRequest):
+    local_path = repo_loader.download_repo(request.repo_url)
+    chunks = repo_loader.load_and_chunk(local_path)
     embeddings_list = embeddings.embed_chunks(chunks)
     vectorstore.store(chunks, embeddings_list)
-    return {"status": "indexed", "chunks_indexed": len(chunks)}
+    return {"status": "indexed", "chunks_indexed": len(chunks), "repo": request.repo_url}
 
-@app.post(
-    "/chat",
-    response_model=ChatResponse,
-    summary="Ask a question about the repo",
-    description="Retrieves relevant code chunks using RAG and generates a Gemini-powered response with citations."
-)
+@app.post("/chat", response_model=ChatResponse, summary="Chat with your codebase")
 async def chat(request: ChatRequest):
     retrieved_chunks = retriever.retrieve(request.query)
-    answer, sources = rag.generate_answer(request.query, retrieved_chunks)
-    # Format sources with snippets for better UX
+    answer, sources = rag.generate_answer(request.query, retrieved_chunks, request.model or "phi3")
     formatted_sources = [
         {"file": c["file"], "snippet": c["content"][:120]} for c in retrieved_chunks
     ]

@@ -1,19 +1,12 @@
-import faiss
 import numpy as np
 
-index = None
-chunk_store = []
+store_data = {"chunks": [], "embeddings": []}
 
 def store(chunks, embeddings):
-    global index, chunk_store
-    dim = len(embeddings[0])
-    index = faiss.IndexFlatL2(dim)
-    vectors = np.array(embeddings).astype("float32")
-    index.add(vectors)
-    chunk_store = chunks
+    if len(embeddings) == 0:
+        raise ValueError("No embeddings generated")
+    store_data["chunks"] = chunks
+    store_data["embeddings"] = embeddings
 
-def search(query_embedding, k=5):
-    global index, chunk_store
-    query_vec = np.array([query_embedding]).astype("float32")
-    distances, indices = index.search(query_vec, k)
-    return [chunk_store[i] for i in indices[0]]
+def get():
+    return store_data
